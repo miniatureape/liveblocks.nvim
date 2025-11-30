@@ -7,7 +7,7 @@ local liveblocks = require('liveblocks')
 
 local augroup = vim.api.nvim_create_augroup('Liveblocks', { clear = true })
 
-vim.api.nvim_create_autocmd('FocusGained', {
+vim.api.nvim_create_autocmd({'FocusGained', 'WinEnter', 'BufEnter'}, {
   group = augroup,
   pattern = '*',
   callback = function()
