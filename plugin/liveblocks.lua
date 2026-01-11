@@ -9,9 +9,17 @@ local augroup = vim.api.nvim_create_augroup('Liveblocks', { clear = true })
 
 vim.api.nvim_create_autocmd({'FocusGained', 'WinEnter', 'BufEnter'}, {
   group = augroup,
-  pattern = '*',
+  pattern = '*.md',
   callback = function()
     liveblocks.refresh_liveblocks()
+  end,
+})
+
+vim.api.nvim_create_autocmd('BufWritePost', {
+  group = augroup,
+  pattern = '*.md',
+  callback = function()
+    liveblocks.write_all_blocks()
   end,
 })
 

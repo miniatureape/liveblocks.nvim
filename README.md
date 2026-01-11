@@ -7,9 +7,11 @@ A Neovim plugin that allows you to embed live content from other files or comman
 - **File Embedding**: Include content from other files that stays synchronized
 - **Command Execution**: Execute shell commands and embed their output
 - **Auto-refresh**: Content updates automatically when you focus the Neovim window
+- **Auto-save**: All liveblocks are automatically saved when you write the buffer
 - **Write-back**: Update source files directly from embedded content
 - **Aliases**: Configure shortcuts for frequently used files
 - **Directory Control**: Enable only in specific directories
+- **Configurable Blocks Directory**: Store blocks in a dedicated directory
 
 ## Installation
 
@@ -27,6 +29,7 @@ A Neovim plugin that allows you to embed live content from other files or comman
         "~/projects",
         "~/documents",
       },
+      blocks_dir = "liveblocks",  -- Directory for storing blocks (default: "liveblocks")
     })
   end
 }
@@ -41,6 +44,7 @@ use {
     require('liveblocks').setup({
       aliases = {},
       root_dirs = {},
+      blocks_dir = "liveblocks",
     })
   end
 }
@@ -91,13 +95,16 @@ The content will be replaced with the output of the command.
 
 ### Path Resolution
 
-- Paths are relative to Vim's current working directory (`:pwd`)
-- Absolute paths are supported
+- Relative paths are resolved within the configured `blocks_dir` (default: `liveblocks/` directory)
+- Absolute paths are supported and bypass the `blocks_dir`
 - Use quotes for paths with spaces: `[//]: #liveblock "path with spaces/file.txt"`
+- Example: With `blocks_dir = "liveblocks"` and working directory `~/wiki`, a block `[//]: #liveblock myfile.txt` will be stored at `~/wiki/liveblocks/myfile.txt`
 
 ### Write-back Feature
 
 Position your cursor inside a liveblock and press `<leader>lbw` (or run `:LiveblocksWriteBack`) to write the current content back to the source file. This does not work for command blocks.
+
+All liveblocks in markdown files are automatically saved when you write the buffer (`:w`). You'll see a notification showing how many blocks were written.
 
 ## Configuration
 
@@ -114,6 +121,10 @@ require('liveblocks').setup({
     "~/projects",
     "~/documents",
   },
+
+  -- Directory for storing liveblock files (relative paths are resolved here)
+  -- Default: "liveblocks"
+  blocks_dir = "liveblocks",
 })
 ```
 
@@ -128,7 +139,11 @@ require('liveblocks').setup({
 
 ## How It Works
 
-The plugin uses markdown comment syntax for the fences, so when rendered, you'll only see the embedded content, not the fence markers. Content automatically refreshes when you focus the Neovim window via the `FocusGained` autocommand.
+The plugin uses markdown comment syntax for the fences, so when rendered, you'll only see the embedded content, not the fence markers.
+
+- Content automatically refreshes when you focus the Neovim window (markdown files only)
+- All liveblocks are automatically saved to their source files when you write the buffer (markdown files only)
+- The plugin only operates on `*.md` files by default
 
 ## Examples
 
