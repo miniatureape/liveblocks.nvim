@@ -4,28 +4,41 @@ M.config = {
   aliases = {},
   root_dirs = {},
   blocks_dir = 'liveblocks',
+  debug = true,
 }
 
 function M.setup(opts)
+  print("setup ")
   opts = opts or {}
   M.config.aliases = opts.aliases or {}
   M.config.root_dirs = opts.root_dirs or {}
   M.config.blocks_dir = opts.blocks_dir or 'liveblocks'
+  M.config.debug = opts.debug or false
+end
+
+local function printd(s)
+  if M.config.debug == true then
+      print(s)
+  end
 end
 
 local function is_in_allowed_directory()
+  printd("checking if in allowed directory")
   if #M.config.root_dirs == 0 then
+    printd("no root dirs")
     return true
   end
 
-  local cwd = vim.fn.getcwd()
+  local bufpath = vim.api.nvim_buf_get_name(0)
   for _, root_dir in ipairs(M.config.root_dirs) do
     local expanded_root = vim.fn.expand(root_dir)
-    if vim.startswith(cwd, expanded_root) then
+    if vim.startswith(bufpath, expanded_root) then
+        printd("In allowed directory" .. bufpath)
       return true
     end
   end
 
+    printd("Not allowed" .. bufpath)
   return false
 end
 
@@ -44,6 +57,7 @@ local function resolve_path(path)
 end
 
 local function parse_liveblocks(lines)
+        printd("parsing liveblocks")
   local blocks = {}
   local i = 1
 
@@ -53,6 +67,7 @@ local function parse_liveblocks(lines)
     local match = line:match(start_pattern)
 
     if match then
+        printd("Found match")
       local start_line = i
       local args = vim.split(vim.trim(match), '%s+')
 
@@ -83,12 +98,14 @@ local function parse_liveblocks(lines)
 end
 
 local function read_file_content(filepath)
+    print("reading filecontent " .. filepath)
   local resolved_path = resolve_path(filepath)
   local full_path = vim.fn.fnamemodify(resolved_path, ':p')
 
   local file = io.open(full_path, 'r')
   if not file then
-    return nil, 'Could not open file: ' .. full_path
+    local content = {}
+    return content
   end
 
   local content = file:read('*all')
@@ -206,7 +223,51 @@ local function write_block_to_file(block, bufnr)
   return true, resolved_path
 end
 
+-- TODO probably remove this once you've tested the other functiont 
+function M.write_back_all()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local cursor_line = cursor[1]
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local blocks = parse_liveblocks(lines)
+
+  for _, block in ipairs(blocks) do
+      if block.args[1] == 'cmd' then
+        vim.notify('Cannot write back to command blocks', vim.log.levels.WARN)
+        return
+      end
+
+      local filepath = table.concat(block.args, ' ')
+      local resolved_path = resolve_path(filepath)
+      local full_path = vim.fn.fnamemodify(resolved_path, ':p')
+      printd("writing to " .. full_path)
+
+      local content_lines = vim.api.nvim_buf_get_lines(
+        bufnr,
+        block.start_line,
+        block.end_line - 1,
+        false
+      )
+
+      local file = io.open(full_path, 'w+')
+      if not file then
+        vim.notify('Could not write to file: ' .. full_path, vim.log.levels.ERROR)
+        return
+      end
+
+      file:write(table.concat(content_lines, '\n'))
+      if #content_lines > 0 then
+        file:write('\n')
+      end
+      file:close()
+
+      vim.notify('Written to ' .. resolved_path, vim.log.levels.INFO)
+      return
+  end
+end
+
 function M.write_back()
+    printd("write back")
   local bufnr = vim.api.nvim_get_current_buf()
   local cursor = vim.api.nvim_win_get_cursor(0)
   local cursor_line = cursor[1]
