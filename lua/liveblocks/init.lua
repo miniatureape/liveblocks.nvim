@@ -8,7 +8,6 @@ M.config = {
 }
 
 function M.setup(opts)
-  print("setup ")
   opts = opts or {}
   M.config.aliases = opts.aliases or {}
   M.config.root_dirs = opts.root_dirs or {}
@@ -23,7 +22,7 @@ local function printd(s)
 end
 
 local function is_in_allowed_directory()
-  printd("checking if in allowed directory")
+  printd("Checking if in allowed directory")
   if #M.config.root_dirs == 0 then
     printd("no root dirs")
     return true
@@ -42,18 +41,43 @@ local function is_in_allowed_directory()
   return false
 end
 
-local function resolve_path(path)
-  if M.config.aliases[path] then
-    path = M.config.aliases[path]
+local function find_local_project_dir(bufpath)
+  printd("Looking for local project dir " .. bufpath)
+  for _, root_dir in ipairs(M.config.root_dirs) do
+    local expanded_root = vim.fn.expand(root_dir)
+    if vim.startswith(bufpath, expanded_root) then
+          printd("Found local project dir" .. expanded_root)
+        return expanded_root
+    end
+  end
+  printd("Could not find expanded root for " .. bufpath)
+  return false
+end
+
+local function resolve_path(rel_path)
+  if M.config.aliases[rel_path] then
+    path = M.config.aliases[rel_path]
   end
 
-  -- If path is not absolute, prepend blocks_dir
-  if not vim.startswith(path, '/') and not vim.startswith(path, '~') then
-    local cwd = vim.fn.getcwd()
-    path = cwd .. '/' .. M.config.blocks_dir .. '/' .. path
+  -- If path is actually absolute return path
+  if vim.startswith(rel_path, '/') then
+      return rel_path
   end
 
-  return path
+  local bufnr = vim.api.nvim_get_current_buf()
+  local curfile = vim.api.nvim_buf_get_name(bufnr)
+
+  -- check that this current file is in a configured project directory
+  local project_root = find_local_project_dir(curfile)
+
+  if not project_root then
+    vim.notify('Block is not in an allowed project directory. Please add to `root_dirs` config', vim.log.levels.WARN)
+    return false
+  end
+
+  -- block `foo` is stored at the project_root of the current file
+  -- + the configured name for blocks, plus `foo`
+  return project_root .. '/' .. M.config.blocks_dir .. '/' .. rel_path
 end
 
 local function parse_liveblocks(lines)
@@ -97,10 +121,18 @@ local function parse_liveblocks(lines)
   return blocks
 end
 
-local function read_file_content(filepath)
-    print("reading filecontent " .. filepath)
-  local resolved_path = resolve_path(filepath)
-  local full_path = vim.fn.fnamemodify(resolved_path, ':p')
+local function read_file_content(rel_filepath)
+    print("Reading rel file" .. rel_filepath);
+  local full_path = resolve_path(rel_filepath)
+  if not full_path then
+    vim.notify(
+        'Liveblocks: Could not resolve filepath for block ' .. rel_filepath,
+        vim.log.levels.WARN
+    )
+    return false
+  end
+
+print("Reading full path file" .. full_path);
 
   local file = io.open(full_path, 'r')
   if not file then
@@ -194,8 +226,17 @@ local function write_block_to_file(block, bufnr)
     return false, 'Cannot write back to command blocks'
   end
 
+  local bufnr = vim.api.nvim_get_current_buf()
+  local curfile = vim.api.nvim_buf_get_name(bufnr)
+  local project_dir = find_local_project_dir(curfile)
+
+  if not project_dir then
+    vim.notify('Block is not in an allowed project directory. Please add to `root_dirs` config', vim.log.levels.WARN)
+  end
+
   local filepath = table.concat(block.args, ' ')
-  local resolved_path = resolve_path(filepath)
+
+  local resolved_path = resolve_path(filepath, project_dir)
   local full_path = vim.fn.fnamemodify(resolved_path, ':p')
 
   -- Ensure directory exists
@@ -209,6 +250,7 @@ local function write_block_to_file(block, bufnr)
     false
   )
 
+  printd("writing to" .. full_path)
   local file = io.open(full_path, 'w')
   if not file then
     return false, 'Could not write to file: ' .. full_path
@@ -220,6 +262,7 @@ local function write_block_to_file(block, bufnr)
   end
   file:close()
 
+  printd("written to " .. resolved_path)
   return true, resolved_path
 end
 
@@ -231,6 +274,13 @@ function M.write_back_all()
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local blocks = parse_liveblocks(lines)
 
+  local curfile = vim.api.nvim_buf_get_name(bufnr)
+  local project_dir = find_local_project_dir(curfile)
+
+  if not project_dir then
+    vim.notify('Block is not in an allowed project directory. Please add to `root_dirs` config', vim.log.levels.WARN)
+  end
+
   for _, block in ipairs(blocks) do
       if block.args[1] == 'cmd' then
         vim.notify('Cannot write back to command blocks', vim.log.levels.WARN)
@@ -238,7 +288,7 @@ function M.write_back_all()
       end
 
       local filepath = table.concat(block.args, ' ')
-      local resolved_path = resolve_path(filepath)
+      local resolved_path = resolve_path(filepath, project_dir)
       local full_path = vim.fn.fnamemodify(resolved_path, ':p')
       printd("writing to " .. full_path)
 

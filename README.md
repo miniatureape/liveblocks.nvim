@@ -177,3 +177,7 @@ My goals for this week:
 ## License
 
 MIT
+
+## TODO
+- If replacement does not match current content, you should not replace and add virtual text saying the content was edited
+- Rename all the project_dir methods as root_dir
