@@ -24,6 +24,10 @@ vim.api.nvim_create_autocmd('BufWritePost', {
   end,
 })
 
+vim.api.nvim_create_user_command('LiveblocksCreate', function()
+  liveblocks.create_liveblock()
+end, {})
+
 vim.api.nvim_create_user_command('LiveblocksRefresh', function()
   liveblocks.refresh_liveblocks()
 end, {})

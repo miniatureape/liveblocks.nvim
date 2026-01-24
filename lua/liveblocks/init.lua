@@ -1,9 +1,13 @@
 local M = {}
 
 M.config = {
-  aliases = {},
-  root_dirs = {},
-  blocks_dir = 'liveblocks',
+  aliases             = {},
+  root_dirs           = {},
+  blocks_dir          = 'liveblocks',
+  start_fence         = '[//]: #liveblock',
+  end_fence           = '[//]: #/liveblock',
+  start_fence_pattern = '%[//%]:%s*#liveblock%s+(.+)',
+  end_fence_pattern   = '%[//%]:%s*#/liveblock',
   debug = true,
 }
 
@@ -12,7 +16,7 @@ function M.setup(opts)
   M.config.aliases = opts.aliases or {}
   M.config.root_dirs = opts.root_dirs or {}
   M.config.blocks_dir = opts.blocks_dir or 'liveblocks'
-  M.config.debug = opts.debug or false
+  M.config.debug = opts.debug
 end
 
 local function printd(s)
@@ -21,10 +25,21 @@ local function printd(s)
   end
 end
 
+-- Insert a blank live block fence
+function M.create_liveblock()
+    -- Insert lines below the current cursor line
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local row = cursor[1] -- 1-indexed line
+    vim.api.nvim_buf_set_lines(
+        0, 
+        row - 1, row - 1,
+        false,
+        { M.config.start_fence, M.config.end_fence }
+    )
+end
+
 local function is_in_allowed_directory()
-  printd("Checking if in allowed directory")
   if #M.config.root_dirs == 0 then
-    printd("no root dirs")
     return true
   end
 
@@ -32,25 +47,20 @@ local function is_in_allowed_directory()
   for _, root_dir in ipairs(M.config.root_dirs) do
     local expanded_root = vim.fn.expand(root_dir)
     if vim.startswith(bufpath, expanded_root) then
-        printd("In allowed directory" .. bufpath)
       return true
     end
   end
 
-    printd("Not allowed" .. bufpath)
   return false
 end
 
 local function find_local_project_dir(bufpath)
-  printd("Looking for local project dir " .. bufpath)
   for _, root_dir in ipairs(M.config.root_dirs) do
     local expanded_root = vim.fn.expand(root_dir)
     if vim.startswith(bufpath, expanded_root) then
-          printd("Found local project dir" .. expanded_root)
         return expanded_root
     end
   end
-  printd("Could not find expanded root for " .. bufpath)
   return false
 end
 
@@ -81,7 +91,6 @@ local function resolve_path(rel_path)
 end
 
 local function parse_liveblocks(lines)
-        printd("parsing liveblocks")
   local blocks = {}
   local i = 1
 
@@ -91,7 +100,8 @@ local function parse_liveblocks(lines)
     local match = line:match(start_pattern)
 
     if match then
-        printd("Found match")
+        print("Found match")
+      local block_content = {}
       local start_line = i
       local args = vim.split(vim.trim(match), '%s+')
 
@@ -100,6 +110,8 @@ local function parse_liveblocks(lines)
         if lines[j]:match('%[//%]:%s*#/liveblock') then
           end_line = j
           break
+        else
+          table.insert(block_content, lines[j])
         end
       end
 
@@ -108,6 +120,7 @@ local function parse_liveblocks(lines)
           start_line = start_line,
           end_line = end_line,
           args = args,
+          content = block_content
         })
         i = end_line + 1
       else
@@ -122,7 +135,6 @@ local function parse_liveblocks(lines)
 end
 
 local function read_file_content(rel_filepath)
-    print("Reading rel file" .. rel_filepath);
   local full_path = resolve_path(rel_filepath)
   if not full_path then
     vim.notify(
@@ -131,8 +143,6 @@ local function read_file_content(rel_filepath)
     )
     return false
   end
-
-print("Reading full path file" .. full_path);
 
   local file = io.open(full_path, 'r')
   if not file then
@@ -186,6 +196,19 @@ local function get_block_content(args)
   end
 end
 
+local function equivalent(t1, t2)
+  -- TODO: Account for empty space at beginning and end
+  if (table.getn(t1) ~= table.getn(t2)) then
+      return false
+  end
+  for i,v in ipairs(t1) do
+      if v ~= t2[i] then
+          return false
+      end
+  end
+  return true
+end
+
 function M.refresh_liveblocks()
   if not is_in_allowed_directory() then
     return
@@ -199,24 +222,33 @@ function M.refresh_liveblocks()
     return
   end
 
-  local modified = false
+  local block_updated = false
 
   for i = #blocks, 1, -1 do
     local block = blocks[i]
     local content, err = get_block_content(block.args)
 
     if content then
+      local buffer_modified = vim.fn.getbufvar(bufnr, 'modified')
+
+      if buffer_modified then
+          if not equivalent(block['content'], content) then
+              -- TODO You might want to warn here if a block
+              -- has changed in another file
+          end
+      end
+
       local start_idx = block.start_line
       local end_idx = block.end_line - 1
 
       vim.api.nvim_buf_set_lines(bufnr, start_idx, end_idx, false, content)
-      modified = true
+      block_updated = true
     elseif err then
       vim.notify('Liveblocks error: ' .. err, vim.log.levels.WARN)
     end
   end
 
-  if modified then
+  if block_updated then
     vim.cmd('silent! update')
   end
 end
@@ -250,7 +282,6 @@ local function write_block_to_file(block, bufnr)
     false
   )
 
-  printd("writing to" .. full_path)
   local file = io.open(full_path, 'w')
   if not file then
     return false, 'Could not write to file: ' .. full_path
@@ -262,7 +293,6 @@ local function write_block_to_file(block, bufnr)
   end
   file:close()
 
-  printd("written to " .. resolved_path)
   return true, resolved_path
 end
 
@@ -290,7 +320,6 @@ function M.write_back_all()
       local filepath = table.concat(block.args, ' ')
       local resolved_path = resolve_path(filepath, project_dir)
       local full_path = vim.fn.fnamemodify(resolved_path, ':p')
-      printd("writing to " .. full_path)
 
       local content_lines = vim.api.nvim_buf_get_lines(
         bufnr,
@@ -311,13 +340,11 @@ function M.write_back_all()
       end
       file:close()
 
-      vim.notify('Written to ' .. resolved_path, vim.log.levels.INFO)
       return
   end
 end
 
 function M.write_back()
-    printd("write back")
   local bufnr = vim.api.nvim_get_current_buf()
   local cursor = vim.api.nvim_win_get_cursor(0)
   local cursor_line = cursor[1]
@@ -327,16 +354,12 @@ function M.write_back()
   for _, block in ipairs(blocks) do
     if cursor_line >= block.start_line and cursor_line <= block.end_line then
       local success, result = write_block_to_file(block, bufnr)
-      if success then
-        vim.notify('Written to ' .. result, vim.log.levels.INFO)
-      else
+      if not success then
         vim.notify('Liveblocks error: ' .. result, vim.log.levels.ERROR)
       end
       return
     end
   end
-
-  vim.notify('Cursor is not inside a liveblock', vim.log.levels.WARN)
 end
 
 function M.write_all_blocks()
@@ -362,12 +385,6 @@ function M.write_all_blocks()
     elseif result ~= 'Cannot write back to command blocks' then
       table.insert(errors, result)
     end
-  end
-
-  if #errors > 0 then
-    vim.notify('Liveblocks: Written ' .. written_count .. ' blocks with ' .. #errors .. ' errors', vim.log.levels.WARN)
-  elseif written_count > 0 then
-    vim.notify('Liveblocks: Written ' .. written_count .. ' blocks', vim.log.levels.INFO)
   end
 end
 
