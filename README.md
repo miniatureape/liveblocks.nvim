@@ -1,5 +1,7 @@
 # liveblocks.nvim
 
+*This is probably not ready for wide consumption*
+
 A Neovim plugin that allows you to embed live content from other files or command outputs directly into your text files. Perfect for keeping documentation up-to-date with code samples or command outputs.
 
 ## Features
