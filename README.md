@@ -181,3 +181,4 @@ MIT
 ## TODO
 - If replacement does not match current content, you should not replace and add virtual text saying the content was edited
 - Rename all the project_dir methods as root_dir
+- When writing back, track liveblock names and only write the first, document this
