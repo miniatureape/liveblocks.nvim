@@ -11,7 +11,6 @@ vim.api.nvim_create_autocmd({'FocusGained', 'WinEnter', 'BufEnter'}, {
   group = augroup,
   pattern = '*.md',
   callback = function()
-    print("refreshing liveblocks")
     liveblocks.refresh_liveblocks()
   end,
 })
