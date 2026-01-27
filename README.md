@@ -21,12 +21,9 @@ A Neovim plugin that allows you to embed live content from other files or comman
 
 ```lua
 {
-  'yourusername/liveblocks.nvim',
+  'miniatureape/liveblocks.nvim',
   config = function()
     require('liveblocks').setup({
-      aliases = {
-        weekly = "Weekly Goals.md",
-      },
       root_dirs = {
         "~/projects",
         "~/documents",
@@ -41,10 +38,9 @@ A Neovim plugin that allows you to embed live content from other files or comman
 
 ```lua
 use {
-  'yourusername/liveblocks.nvim',
+  '',
   config = function()
     require('liveblocks').setup({
-      aliases = {},
       root_dirs = {},
       blocks_dir = "liveblocks",
     })
@@ -59,38 +55,19 @@ use {
 Add a liveblock fence to your markdown or text file:
 
 ```markdown
-[//]: #liveblock "path/to/file.txt"
-[//]: #/liveblock
+[//]: #lb "path/to/file.txt"
+[//]: #/lb
 ```
 
 The content between the fences will be replaced with the contents of `path/to/file.txt` when you focus the Neovim window.
-
-### Using Aliases
-
-Configure an alias in your setup:
-
-```lua
-require('liveblocks').setup({
-  aliases = {
-    weekly = "Weekly Goals.md",
-  },
-})
-```
-
-Then use it in your files:
-
-```markdown
-[//]: #liveblock weekly
-[//]: #/liveblock
-```
 
 ### Embedding Command Output
 
 Use the special `cmd` keyword to execute commands:
 
 ```markdown
-[//]: #liveblock cmd ls -la /srv
-[//]: #/liveblock
+[//]: #lb cmd ls -la /srv
+[//]: #/lb
 ```
 
 The content will be replaced with the output of the command.
@@ -99,10 +76,12 @@ The content will be replaced with the output of the command.
 
 - Relative paths are resolved within the configured `blocks_dir` (default: `liveblocks/` directory)
 - Absolute paths are supported and bypass the `blocks_dir`
-- Use quotes for paths with spaces: `[//]: #liveblock "path with spaces/file.txt"`
-- Example: With `blocks_dir = "liveblocks"` and working directory `~/wiki`, a block `[//]: #liveblock myfile.txt` will be stored at `~/wiki/liveblocks/myfile.txt`
+- Use quotes for paths with spaces: `[//]: #lb "path with spaces/file.txt"`
+- Example: With `blocks_dir = "liveblocks"` and working directory `~/wiki`, a block `[//]: #lb myfile` will be stored at `~/wiki/liveblocks/myfile`
 
 ### Write-back Feature
+
+When you write a buffer with liveblocks in it, all the live blocks are written back.
 
 Position your cursor inside a liveblock and press `<leader>lbw` (or run `:LiveblocksWriteBack`) to write the current content back to the source file. This does not work for command blocks.
 
@@ -134,6 +113,7 @@ require('liveblocks').setup({
 
 - `:LiveblocksRefresh` - Manually refresh all liveblocks in the current buffer
 - `:LiveblocksWriteBack` - Write the current block content back to its source file
+- `:LiveblocksCreate` - Generate the liveblock fences to start a new liveblock
 
 ## Key Mappings
 
@@ -154,8 +134,8 @@ The plugin uses markdown comment syntax for the fences, so when rendered, you'll
 ```markdown
 Here's the current implementation:
 
-[//]: #liveblock "src/utils/helper.js"
-[//]: #/liveblock
+[//]: #lb "src/utils/helper.js"
+[//]: #/lb
 ```
 
 ### Example 2: Directory Listing
@@ -163,17 +143,8 @@ Here's the current implementation:
 ```markdown
 Current project structure:
 
-[//]: #liveblock cmd tree -L 2
-[//]: #/liveblock
-```
-
-### Example 3: Using Aliases
-
-```markdown
-My goals for this week:
-
-[//]: #liveblock weekly
-[//]: #/liveblock
+[//]: #lb cmd tree -L 2
+[//]: #/lb
 ```
 
 ## License
@@ -181,6 +152,6 @@ My goals for this week:
 MIT
 
 ## TODO
-- If replacement does not match current content, you should not replace and add virtual text saying the content was edited
+
 - Rename all the project_dir methods as root_dir
 - When writing back, track liveblock names and only write the first, document this
