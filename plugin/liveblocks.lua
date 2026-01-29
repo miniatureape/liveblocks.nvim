@@ -15,7 +15,7 @@ vim.api.nvim_create_autocmd({'FocusGained', 'WinEnter', 'BufEnter'}, {
   end,
 })
 
-vim.api.nvim_create_autocmd('BufWritePost', {
+vim.api.nvim_create_autocmd({'BufWritePost', 'WinLeave', 'BufLeave'}, {
   group = augroup,
   pattern = '*.md',
   callback = function()
