@@ -38,3 +38,7 @@ end, {})
 vim.api.nvim_create_user_command('LiveblocksGoto', function()
   liveblocks.goto()
 end, {})
+
+vim.api.nvim_create_user_command('LiveblocksWrap', function(opts)
+  liveblocks.wrap_selection(opts.line1, opts.line2)
+end, { range = true })

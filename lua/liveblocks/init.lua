@@ -38,11 +38,27 @@ function M.create_liveblock()
     local row = cursor[1] -- 1-indexed line
     local fence = fence()
     vim.api.nvim_buf_set_lines(
-        0, 
+        0,
         row - 1, row - 1,
         false,
         { fence['start'], fence['end'] }
     )
+end
+
+-- Wrap visual selection with liveblock fences
+function M.wrap_selection(start_line, end_line)
+    dprint('Wrapping selection with liveblock')
+    local fence = fence()
+    local bufnr = vim.api.nvim_get_current_buf()
+
+    -- Insert end fence after selection (do this first to preserve line numbers)
+    vim.api.nvim_buf_set_lines(bufnr, end_line, end_line, false, { fence['end'] })
+    -- Insert start fence before selection
+    vim.api.nvim_buf_set_lines(bufnr, start_line - 1, start_line - 1, false, { fence['start'] })
+
+    -- Move cursor to end of start fence line, ready to type the liveblock name
+    local col = #fence['start']
+    vim.api.nvim_win_set_cursor(0, { start_line, col })
 end
 
 local function is_in_allowed_directory()
