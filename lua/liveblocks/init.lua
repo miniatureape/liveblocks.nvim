@@ -492,4 +492,64 @@ function M.write_all_blocks()
   end
 end
 
+function M.scan_all_blocks()
+  local fence = fence()
+  local results = {}
+
+  for _, root_dir in ipairs(M.config.root_dirs) do
+    local expanded_root = vim.fn.expand(root_dir)
+    local md_files = vim.fn.globpath(expanded_root, '**/*.md', false, true)
+
+    for _, filepath in ipairs(md_files) do
+      local file = io.open(filepath, 'r')
+      if file then
+        local content = file:read('*all')
+        file:close()
+
+        local lines = vim.split(content, '\n', { plain = true })
+        local i = 1
+
+        while i <= #lines do
+          local line = lines[i]
+          local match = line:match(fence['start_pattern'])
+
+          if match then
+            local block_content = {}
+            local start_line = i
+            local args = vim.split(vim.trim(match), '%s+')
+            local end_line = nil
+
+            for j = i + 1, #lines do
+              if lines[j]:match(fence['end_pattern']) then
+                end_line = j
+                break
+              else
+                table.insert(block_content, lines[j])
+              end
+            end
+
+            if end_line then
+              table.insert(results, {
+                source_file = filepath,
+                start_line = start_line,
+                end_line = end_line,
+                args = args,
+                content = block_content,
+                is_command = is_command_block(args),
+              })
+              i = end_line + 1
+            else
+              i = i + 1
+            end
+          else
+            i = i + 1
+          end
+        end
+      end
+    end
+  end
+
+  return results
+end
+
 return M

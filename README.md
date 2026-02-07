@@ -114,10 +114,29 @@ require('liveblocks').setup({
 - `:LiveblocksRefresh` - Manually refresh all liveblocks in the current buffer
 - `:LiveblocksWriteBack` - Write the current block content back to its source file
 - `:LiveblocksCreate` - Generate the liveblock fences to start a new liveblock
+- `:LiveblocksTelescope` - Open a Telescope picker to browse all liveblocks across your project
 
 ## Key Mappings
 
 - `<leader>lbw` - Write back to source file (when cursor is inside a liveblock)
+
+## Telescope Integration
+
+If you have [Telescope](https://github.com/nvim-telescope/telescope.nvim) installed, you can browse all liveblocks across your configured `root_dirs` with fuzzy search and preview.
+
+```
+:Telescope liveblocks
+```
+
+Or use the convenience command:
+
+```
+:LiveblocksTelescope
+```
+
+The picker lets you fuzzy-search by block name or file path. The preview pane shows the markdown file at the block's location, and pressing enter jumps to the selected liveblock.
+
+Telescope is optional — the plugin works fine without it.
 
 ## How It Works
 
