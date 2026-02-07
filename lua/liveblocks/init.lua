@@ -196,15 +196,55 @@ local function read_file_content(rel_filepath)
   return lines
 end
 
+local function is_command_block(args)
+  return args[1] == 'cmd' or (args[1] and args[1]:sub(1, 1) == '!')
+end
+
+local function get_command_args(args)
+  if args[1] == 'cmd' then
+    local cmd_args = {}
+    for i = 2, #args do
+      table.insert(cmd_args, args[i])
+    end
+    return cmd_args
+  elseif args[1] and args[1]:sub(1, 1) == '!' then
+    local cmd_args = { args[1]:sub(2) }
+    for i = 2, #args do
+      table.insert(cmd_args, args[i])
+    end
+    return cmd_args
+  end
+  return nil
+end
+
+local function escape_arg(arg)
+  local expanded = arg:gsub('^~/', vim.fn.expand('~') .. '/')
+  expanded = expanded:gsub('^~$', vim.fn.expand('~'))
+  return vim.fn.shellescape(expanded)
+end
+
 local function execute_command(args)
-  local cmd = table.concat(args, ' ')
-  local handle = io.popen(cmd)
-  if not handle then
-    return nil, 'Could not execute command: ' .. cmd
+  -- Split args into pipeline stages on | tokens, escaping args within each stage
+  local stages = {{}}
+  for _, arg in ipairs(args) do
+    if arg == '|' then
+      table.insert(stages, {})
+    else
+      table.insert(stages[#stages], escape_arg(arg))
+    end
   end
 
-  local output = handle:read('*all')
-  handle:close()
+  local escaped_stages = {}
+  for _, stage in ipairs(stages) do
+    table.insert(escaped_stages, table.concat(stage, ' '))
+  end
+
+  local cmd = table.concat(escaped_stages, ' | ')
+  local output = vim.fn.system(cmd)
+
+  if vim.v.shell_error ~= 0 then
+    return nil, 'Command failed (exit ' .. vim.v.shell_error .. '): ' .. cmd
+  end
 
   local lines = vim.split(output, '\n', { plain = true })
   if lines[#lines] == '' then
@@ -219,12 +259,8 @@ local function get_block_content(args)
     return nil, 'No arguments provided'
   end
 
-  if args[1] == 'cmd' then
-    local cmd_args = {}
-    for i = 2, #args do
-      table.insert(cmd_args, args[i])
-    end
-    return execute_command(cmd_args)
+  if is_command_block(args) then
+    return execute_command(get_command_args(args))
   else
     local filepath = table.concat(args, ' ')
     return read_file_content(filepath)
@@ -305,7 +341,7 @@ end
 
 local function write_block_to_file(block, bufnr)
   dprint('Writing block to file');
-  if block.args[1] == 'cmd' then
+  if is_command_block(block.args) then
     return false, 'Cannot write back to command blocks'
   end
 
@@ -363,7 +399,7 @@ function M.write_back_all()
   end
 
   for _, block in ipairs(blocks) do
-      if block.args[1] == 'cmd' then
+      if is_command_block(block.args) then
         vim.notify('Cannot write back to command blocks', vim.log.levels.WARN)
         return
       end
