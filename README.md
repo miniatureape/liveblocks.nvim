@@ -63,10 +63,10 @@ The content between the fences will be replaced with the contents of `path/to/fi
 
 ### Embedding Command Output
 
-Use the special `cmd` keyword to execute commands:
+Prefix a shell command with `!` to execute it and embed the output:
 
 ```markdown
-[//]: #lb cmd ls -la /srv
+[//]: #lb !ls -la ~/
 [//]: #/lb
 ```
 
@@ -143,7 +143,7 @@ Here's the current implementation:
 ```markdown
 Current project structure:
 
-[//]: #lb cmd tree -L 2
+[//]: #lb !tree -L 2
 [//]: #/lb
 ```
 
@@ -151,7 +151,3 @@ Current project structure:
 
 MIT
 
-## TODO
-
-- Rename all the project_dir methods as root_dir
-- When writing back, track liveblock names and only write the first, document this
