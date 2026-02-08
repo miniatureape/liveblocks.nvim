@@ -14,6 +14,7 @@ A Neovim plugin that allows you to embed live content from other files or comman
 - **Aliases**: Configure shortcuts for frequently used files
 - **Directory Control**: Enable only in specific directories
 - **Configurable Blocks Directory**: Store blocks in a dedicated directory
+- **Folding**: Liveblock fences act as fold markers, letting you collapse blocks to focus on your document
 
 ## Installation
 
@@ -106,6 +107,9 @@ require('liveblocks').setup({
   -- Directory for storing liveblock files (relative paths are resolved here)
   -- Default: "liveblocks"
   blocks_dir = "liveblocks",
+
+  -- Enable folding of liveblock fences (default: true)
+  folding = true,
 })
 ```
 
@@ -137,6 +141,28 @@ Or use the convenience command:
 The picker lets you fuzzy-search by block name or file path. The preview pane shows the markdown file at the block's location, and pressing enter jumps to the selected liveblock.
 
 Telescope is optional — the plugin works fine without it.
+
+## Folding
+
+Liveblock fences double as Neovim fold markers, so you can collapse blocks to see just your document structure. Folding is enabled by default. To disable it:
+
+```lua
+require('liveblocks').setup({
+  folding = false,
+})
+```
+
+Common fold commands:
+
+| Command | Description |
+|---------|-------------|
+| `za` | Toggle fold under cursor |
+| `zo` | Open fold under cursor |
+| `zc` | Close fold under cursor |
+| `zR` | Open all folds |
+| `zM` | Close all folds |
+| `zj` | Jump to next fold |
+| `zk` | Jump to previous fold |
 
 ## How It Works
 

@@ -5,6 +5,7 @@ M.config = {
   root_dirs           = {},
   blocks_dir          = 'liveblocks',
   fence_str           = 'lb',
+  folding             = true,
 }
 
 function M.setup(opts)
@@ -13,6 +14,9 @@ function M.setup(opts)
   M.config.root_dirs = opts.root_dirs or {}
   M.config.blocks_dir = opts.blocks_dir or 'liveblocks'
   M.config.debug = opts.debug or false
+  if opts.folding ~= nil then
+    M.config.folding = opts.folding
+  end
 end
 
 local function dprint(s)
@@ -28,6 +32,15 @@ local function fence()
   fence['start_pattern'] = '%[//%]: #' .. M.config.fence_str .. ' (.+)'
   fence['end_pattern'] = '%[//%]: #/' .. M.config.fence_str
   return fence
+end
+
+function M.setup_folding()
+  if not M.config.folding then
+    return
+  end
+  local f = fence()
+  vim.wo.foldmethod = 'marker'
+  vim.wo.foldmarker = f['start'] .. ',' .. f['end']
 end
 
 -- Insert a blank live block fence

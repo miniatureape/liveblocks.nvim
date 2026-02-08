@@ -7,6 +7,14 @@ local liveblocks = require('liveblocks')
 
 local augroup = vim.api.nvim_create_augroup('Liveblocks', { clear = true })
 
+vim.api.nvim_create_autocmd('BufWinEnter', {
+  group = augroup,
+  pattern = '*.md',
+  callback = function()
+    liveblocks.setup_folding()
+  end,
+})
+
 vim.api.nvim_create_autocmd({'FocusGained', 'WinEnter', 'BufEnter'}, {
   group = augroup,
   pattern = '*.md',
