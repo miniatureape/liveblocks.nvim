@@ -41,6 +41,7 @@ function M.setup_folding()
   local f = fence()
   vim.wo.foldmethod = 'marker'
   vim.wo.foldmarker = f['start'] .. ',' .. f['end']
+  vim.wo.foldlevel = 99
 end
 
 -- Insert a blank live block fence
