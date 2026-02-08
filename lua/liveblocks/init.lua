@@ -66,12 +66,12 @@ function M.wrap_selection(start_line, end_line)
 
     -- Insert end fence after selection (do this first to preserve line numbers)
     vim.api.nvim_buf_set_lines(bufnr, end_line, end_line, false, { fence['end'] })
-    -- Insert start fence before selection
-    vim.api.nvim_buf_set_lines(bufnr, start_line - 1, start_line - 1, false, { fence['start'] })
+    -- Insert start fence before selection with a trailing space for the block name
+    vim.api.nvim_buf_set_lines(bufnr, start_line - 1, start_line - 1, false, { fence['start'] .. ' ' })
 
-    -- Move cursor to end of start fence line, ready to type the liveblock name
-    local col = #fence['start']
-    vim.api.nvim_win_set_cursor(0, { start_line, col })
+    -- Move cursor to start fence line and enter insert mode at end of line
+    vim.api.nvim_win_set_cursor(0, { start_line, 0 })
+    vim.cmd('startinsert!')
 end
 
 local function is_in_allowed_directory()
