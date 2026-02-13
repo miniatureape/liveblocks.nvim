@@ -469,6 +469,58 @@ function M.goto()
     end
 end
 
+function M.open_float()
+  local current_block = get_current_block()
+  if not current_block then return end
+
+  if is_command_block(current_block.args) then
+    vim.notify('Cannot open command blocks in floating window', vim.log.levels.WARN)
+    return
+  end
+
+  local parent_bufnr = vim.api.nvim_get_current_buf()
+
+  local buf = vim.fn.bufadd(current_block.full_path)
+  vim.fn.bufload(buf)
+
+  local width = math.floor(vim.o.columns * 0.8)
+  local height = math.floor(vim.o.lines * 0.8)
+  local row = math.floor((vim.o.lines - height) / 2)
+  local col = math.floor((vim.o.columns - width) / 2)
+
+  local title = ' ' .. table.concat(current_block.args, ' ') .. ' '
+
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = 'editor',
+    width = width,
+    height = height,
+    row = row,
+    col = col,
+    style = 'minimal',
+    border = 'rounded',
+    title = title,
+    title_pos = 'center',
+  })
+
+  vim.keymap.set('n', 'q', function()
+    vim.api.nvim_win_close(win, false)
+  end, { buffer = buf, noremap = true })
+
+  vim.api.nvim_create_autocmd('WinClosed', {
+    pattern = tostring(win),
+    once = true,
+    callback = function()
+      pcall(vim.keymap.del, 'n', 'q', { buffer = buf })
+      vim.schedule(function()
+        if vim.api.nvim_buf_is_valid(parent_bufnr) then
+          vim.api.nvim_set_current_buf(parent_bufnr)
+          M.refresh_liveblocks()
+        end
+      end)
+    end,
+  })
+end
+
 function M.write_back()
   local block = get_current_block()
   if current_block then
