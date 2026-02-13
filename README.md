@@ -118,11 +118,17 @@ require('liveblocks').setup({
 - `:LiveblocksRefresh` - Manually refresh all liveblocks in the current buffer
 - `:LiveblocksWriteBack` - Write the current block content back to its source file
 - `:LiveblocksCreate` - Generate the liveblock fences to start a new liveblock
+- `:LiveblocksGoto` - Open the source file of the liveblock under the cursor
 - `:LiveblocksTelescope` - Open a Telescope picker to browse all liveblocks across your project
 
 ## Key Mappings
 
 - `<leader>lbw` - Write back to source file (when cursor is inside a liveblock)
+- `<leader>lg` - Go to liveblock source (example mapping below)
+
+```lua
+vim.keymap.set('n', '<leader>lg', require('liveblocks').goto, { desc = 'Go to liveblock source' })
+```
 
 ## Telescope Integration
 
