@@ -15,6 +15,7 @@ A Neovim plugin that allows you to embed live content from other files or comman
 - **Directory Control**: Enable only in specific directories
 - **Configurable Blocks Directory**: Store blocks in a dedicated directory
 - **Folding**: Liveblock fences act as fold markers, letting you collapse blocks to focus on your document
+- **Conceal**: Fence lines are replaced with a compact `// name` / `///` form when your cursor is outside the block
 
 ## Installation
 
@@ -110,6 +111,10 @@ require('liveblocks').setup({
 
   -- Enable folding of liveblock fences (default: true)
   folding = true,
+
+  -- Show compact fence form when cursor is outside the block (default: true)
+  -- Start fence shows as  // <name>, end fence shows as ///
+  conceal = true,
 })
 ```
 
@@ -172,6 +177,24 @@ Common fold commands:
 | `zM` | Close all folds |
 | `zj` | Jump to next fold |
 | `zk` | Jump to previous fold |
+
+## Conceal
+
+When your cursor is outside a liveblock, the verbose fence syntax is replaced with a compact form using Neovim's conceal feature:
+
+```
+// src/utils/helper.js     ← start fence
+...block content...
+///                         ← end fence
+```
+
+Move your cursor anywhere inside the block and the full fence text is restored. Conceal is enabled by default. To disable it:
+
+```lua
+require('liveblocks').setup({
+  conceal = false,
+})
+```
 
 ## How It Works
 

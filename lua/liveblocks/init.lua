@@ -6,6 +6,7 @@ M.config = {
   blocks_dir          = 'liveblocks',
   fence_str           = 'lb',
   folding             = true,
+  conceal             = true,
 }
 
 function M.setup(opts)
@@ -17,7 +18,13 @@ function M.setup(opts)
   if opts.folding ~= nil then
     M.config.folding = opts.folding
   end
+  if opts.conceal ~= nil then
+    M.config.conceal = opts.conceal
+  end
 end
+
+local conceal_ns = vim.api.nvim_create_namespace('liveblocks_conceal')
+local fence_cache = {}
 
 local function dprint(s)
     if M.config.debug then
@@ -34,14 +41,100 @@ local function fence()
   return fence
 end
 
-function M.setup_folding()
-  if not M.config.folding then
-    return
-  end
+-- Lightweight fence scanner (no path resolution, safe to call on every cursor move)
+local function find_fences(lines)
+  local results = {}
   local f = fence()
-  vim.wo.foldmethod = 'marker'
-  vim.wo.foldmarker = f['start'] .. ',' .. f['end']
-  vim.wo.foldlevel = 99
+  local i = 1
+  while i <= #lines do
+    local match = lines[i]:match(f['start_pattern'])
+    if match then
+      local start_line = i
+      local end_line = nil
+      for j = i + 1, #lines do
+        if lines[j]:match(f['end_pattern']) then
+          end_line = j
+          break
+        end
+      end
+      if end_line then
+        local name = vim.trim(match):gsub('^"(.*)"$', '%1')
+        table.insert(results, { start_line = start_line, end_line = end_line, name = name })
+        i = end_line + 1
+      else
+        i = i + 1
+      end
+    else
+      i = i + 1
+    end
+  end
+  return results
+end
+
+function M.update_conceal(bufnr)
+  if not M.config.conceal then return end
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+
+  vim.api.nvim_buf_clear_namespace(bufnr, conceal_ns, 0, -1)
+
+  local tick = vim.api.nvim_buf_get_changedtick(bufnr)
+  local cache = fence_cache[bufnr]
+  local fences, lines
+
+  if cache and cache.tick == tick then
+    fences = cache.fences
+    lines = cache.lines
+  else
+    lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    fences = find_fences(lines)
+    fence_cache[bufnr] = { fences = fences, lines = lines, tick = tick }
+  end
+
+  local cursor_line = vim.api.nvim_win_get_cursor(0)[1]  -- 1-indexed
+
+  for _, fi in ipairs(fences) do
+    local cursor_in_block = cursor_line >= fi.start_line and cursor_line <= fi.end_line
+
+    -- Conceal start fence, show short form
+    local sl0 = fi.start_line - 1
+    if not cursor_in_block then
+      local line_text = lines[fi.start_line]
+      vim.api.nvim_buf_set_extmark(bufnr, conceal_ns, sl0, 0, {
+        end_row = sl0,
+        end_col = #line_text,
+        conceal = '',
+        virt_text = { { '// ' .. fi.name, 'Comment' } },
+        virt_text_pos = 'overlay',
+      })
+    end
+
+    -- Conceal end fence, show short form
+    local el0 = fi.end_line - 1
+    if not cursor_in_block then
+      local line_text = lines[fi.end_line]
+      vim.api.nvim_buf_set_extmark(bufnr, conceal_ns, el0, 0, {
+        end_row = el0,
+        end_col = #line_text,
+        conceal = '',
+        virt_text = { { '///', 'Comment' } },
+        virt_text_pos = 'overlay',
+      })
+    end
+  end
+end
+
+function M.setup_folding()
+  if M.config.folding then
+    local f = fence()
+    vim.wo.foldmethod = 'marker'
+    vim.wo.foldmarker = f['start'] .. ',' .. f['end']
+    vim.wo.foldlevel = 99
+  end
+
+  if M.config.conceal then
+    vim.wo.conceallevel = 2
+    M.update_conceal(vim.api.nvim_get_current_buf())
+  end
 end
 
 -- Insert a blank live block fence
@@ -351,6 +444,8 @@ function M.refresh_liveblocks()
   if block_updated then
     vim.cmd('silent! update')
   end
+
+  M.update_conceal(bufnr)
 end
 
 local function write_block_to_file(block, bufnr)

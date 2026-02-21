@@ -23,6 +23,14 @@ vim.api.nvim_create_autocmd({'FocusGained', 'WinEnter', 'BufEnter'}, {
   end,
 })
 
+vim.api.nvim_create_autocmd({'CursorMoved', 'CursorMovedI'}, {
+  group = augroup,
+  pattern = '*.md',
+  callback = function()
+    liveblocks.update_conceal(vim.api.nvim_get_current_buf())
+  end,
+})
+
 vim.api.nvim_create_autocmd({'BufWritePost', 'WinLeave', 'BufLeave'}, {
   group = augroup,
   pattern = '*.md',
