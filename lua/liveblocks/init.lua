@@ -713,4 +713,54 @@ function M.scan_all_blocks()
   return results
 end
 
+-- Omnifunc for completing block names on fence-start lines.
+-- Triggered by Ctrl-X Ctrl-O when the cursor is on a line like:
+--   [//]: #lb <partial-name>
+function M.omnifunc(findstart, base)
+  local f = fence()
+  local prefix = f['start'] .. ' '
+  local line = vim.api.nvim_get_current_line()
+
+  dprint('omnifunc called: findstart=' .. tostring(findstart) .. ' base=' .. tostring(base))
+  dprint('  line:   |' .. line .. '|')
+  dprint('  prefix: |' .. prefix .. '|')
+  dprint('  starts: ' .. tostring(vim.startswith(line, prefix)))
+
+  if not vim.startswith(line, prefix) then
+    dprint('  -> not a fence line, chaining')
+    -- Not on a fence line — chain to whatever omnifunc was set before us
+    local prev = vim.b.liveblocks_prev_omnifunc
+    if prev and prev ~= '' then
+      dprint('  -> delegating to ' .. prev)
+      return vim.fn[prev](findstart, base)
+    end
+    return findstart == 1 and -3 or {}
+  end
+
+  if findstart == 1 then
+    dprint('  -> fence line detected, start col=' .. tostring(#prefix))
+    return #prefix  -- 0-indexed column where the block name starts
+  end
+
+  -- Collect relative file paths from every configured blocks_dir
+  local items = {}
+  for _, root_dir in ipairs(M.config.root_dirs) do
+    local blocks_path = vim.fn.expand(root_dir) .. '/' .. M.config.blocks_dir
+    dprint('  scanning: ' .. blocks_path)
+    local files = vim.fn.globpath(blocks_path, '**/*', false, true)
+    dprint('  found ' .. tostring(#files) .. ' files')
+    for _, file in ipairs(files) do
+      if vim.fn.isdirectory(file) == 0 then
+        local rel = file:sub(#blocks_path + 2)  -- strip leading blocks_path/
+        dprint('  candidate: ' .. rel)
+        if vim.startswith(rel, base) then
+          table.insert(items, { word = rel, menu = '[liveblocks]' })
+        end
+      end
+    end
+  end
+  dprint('  returning ' .. tostring(#items) .. ' items')
+  return items
+end
+
 return M

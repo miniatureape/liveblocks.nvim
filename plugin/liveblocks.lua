@@ -5,6 +5,10 @@ vim.g.loaded_liveblocks = true
 
 local liveblocks = require('liveblocks')
 
+_G._liveblocks_omnifunc = function(findstart, base)
+  return liveblocks.omnifunc(findstart, base)
+end
+
 local augroup = vim.api.nvim_create_augroup('Liveblocks', { clear = true })
 
 vim.api.nvim_create_autocmd('BufWinEnter', {
@@ -12,6 +16,22 @@ vim.api.nvim_create_autocmd('BufWinEnter', {
   pattern = '*.md',
   callback = function()
     liveblocks.setup_folding()
+  end,
+})
+
+vim.api.nvim_create_autocmd('FileType', {
+  group = augroup,
+  pattern = 'markdown',
+  callback = function()
+    -- Defer so we run after other FileType handlers (e.g. wiki plugins) have
+    -- set their own omnifunc, letting us save it for chaining.
+    vim.schedule(function()
+      local prev = vim.bo.omnifunc
+      if prev ~= '' and prev ~= 'v:lua.require("liveblocks").omnifunc' then
+        vim.b.liveblocks_prev_omnifunc = prev
+      end
+      vim.bo.omnifunc = 'v:lua._liveblocks_omnifunc'
+    end)
   end,
 })
 

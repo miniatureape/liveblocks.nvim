@@ -16,6 +16,7 @@ A Neovim plugin that allows you to embed live content from other files or comman
 - **Configurable Blocks Directory**: Store blocks in a dedicated directory
 - **Folding**: Liveblock fences act as fold markers, letting you collapse blocks to focus on your document
 - **Conceal**: Fence lines are replaced with a compact `// name` / `///` form when your cursor is outside the block
+- **Completion**: Built-in omnifunc surfaces available block names when typing a fence-start line
 
 ## Installation
 
@@ -136,6 +137,35 @@ require('liveblocks').setup({
 ```lua
 vim.keymap.set('n', '<leader>lg', require('liveblocks').goto, { desc = 'Go to liveblock source' })
 vim.keymap.set('n', '<leader>lf', require('liveblocks').open_float, { desc = 'Edit liveblock in float' })
+```
+
+## Completion
+
+liveblocks.nvim registers an `omnifunc` on markdown buffers so you can complete block names while writing a fence-start line.
+
+### Triggering completion
+
+Place your cursor at the end of a fence-start line (after the space following `#lb`) and press `Ctrl-X Ctrl-O`:
+
+```markdown
+[//]: #lb my<C-X><C-O>   ← shows all blocks whose name starts with "my"
+```
+
+The popup lists every file found recursively inside your configured `blocks_dir`. Selecting an entry inserts the relative path.
+
+Completion is a no-op on any other line, so it won't interfere with other `omnifunc` providers.
+
+### Using with nvim-cmp
+
+If you use [nvim-cmp](https://github.com/hrsh7th/nvim-cmp), add the `omni` source (provided by [cmp-nvim-omni](https://github.com/hrsh7th/cmp-nvim-omni)) to your cmp config and liveblock completions will appear automatically without pressing `Ctrl-X Ctrl-O`:
+
+```lua
+require('cmp').setup({
+  sources = {
+    { name = 'omni' },
+    -- ... your other sources
+  },
+})
 ```
 
 ## Telescope Integration
