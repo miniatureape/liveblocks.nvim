@@ -51,7 +51,7 @@ vim.api.nvim_create_autocmd({'CursorMoved', 'CursorMovedI'}, {
   end,
 })
 
-vim.api.nvim_create_autocmd({'BufWritePost', 'WinLeave', 'BufLeave'}, {
+vim.api.nvim_create_autocmd({'BufWritePost', 'WinLeave', 'BufLeave', 'FocusLost'}, {
   group = augroup,
   pattern = '*.md',
   callback = function()
