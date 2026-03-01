@@ -1,6 +1,10 @@
 # liveblocks.nvim
 
-*This is probably not ready for wide consumption*
+*This is probably not ready for wide consumption. You can lose data in certain situations beware when
+
+- having non-vim processes writing to a liveblock.
+- creating two of the same liveblocks on a page.
+*
 
 A Neovim plugin that allows you to embed live content from other files or command outputs directly into your text files. Perfect for keeping documentation up-to-date with code samples or command outputs.
 
