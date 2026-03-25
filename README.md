@@ -21,6 +21,7 @@ A Neovim plugin that allows you to embed live content from other files or comman
 - **Folding**: Liveblock fences act as fold markers, letting you collapse blocks to focus on your document
 - **Conceal**: Fence lines are replaced with a compact `// name` / `///` form when your cursor is outside the block
 - **Completion**: Built-in omnifunc surfaces available block names when typing a fence-start line
+- **Insert Picker**: Floating window or Telescope picker to search and insert blocks from insert mode
 
 ## Installation
 
@@ -128,9 +129,11 @@ require('liveblocks').setup({
 - `:LiveblocksRefresh` - Manually refresh all liveblocks in the current buffer
 - `:LiveblocksWriteBack` - Write the current block content back to its source file
 - `:LiveblocksCreate` - Generate the liveblock fences to start a new liveblock
+- `:LiveblocksInsert` - Open the floating insert picker to search and insert a block
 - `:LiveblocksGoto` - Open the source file of the liveblock under the cursor
 - `:LiveblocksFloat` - Edit the liveblock source file in a floating window
 - `:LiveblocksTelescope` - Open a Telescope picker to browse all liveblocks across your project
+- `:LiveblocksTelescopeInsert` - Open a Telescope picker to search `blocks_dir` files and insert a fence
 
 ## Key Mappings
 
@@ -172,21 +175,57 @@ require('cmp').setup({
 })
 ```
 
+## Insert Picker
+
+`:LiveblocksInsert` opens a two-panel floating window that lets you fuzzy-search your `blocks_dir` and insert a fence pair at the cursor — no Telescope required.
+
+```
+╭──────── Insert Liveblock ────────╮
+│ my-notes                         │
+│ project/goals       ← selected  │
+│ snippets/hello                   │
+╰──────────────────────────────────╯
+╭──────────────────────────────────╮
+│ > goal                           │
+╰──────────────────────────────────╯
+```
+
+Type to filter the list. Use `<C-n>` / `<C-p>` to move the selection, `<CR>` to insert the chosen block's fence pair, and `<Esc>` or `<C-c>` to cancel.
+
+The fence pair is inserted before the current line and `refresh` runs immediately to populate the block content.
+
+A suggested insert-mode mapping:
+
+```lua
+vim.keymap.set('i', '<C-x><C-l>', '<Cmd>LiveblocksInsert<CR>', { desc = 'Insert liveblock' })
+```
+
 ## Telescope Integration
 
-If you have [Telescope](https://github.com/nvim-telescope/telescope.nvim) installed, you can browse all liveblocks across your configured `root_dirs` with fuzzy search and preview.
+If you have [Telescope](https://github.com/nvim-telescope/telescope.nvim) installed, two pickers are available.
+
+### Browse picker — `:LiveblocksTelescope`
+
+Searches all liveblock fences used across your markdown files. The preview pane shows the markdown file at the block's location.
 
 ```
 :Telescope liveblocks
-```
-
-Or use the convenience command:
-
-```
 :LiveblocksTelescope
 ```
 
-The picker lets you fuzzy-search by block name or file path. The preview pane shows the markdown file at the block's location, and pressing enter jumps to the selected liveblock.
+| Key | Action |
+|-----|--------|
+| `<CR>` | Jump to the block's source file |
+| `<C-i>` | Insert the block's fence pair at the cursor in the calling buffer |
+
+### Insert picker — `:LiveblocksTelescopeInsert`
+
+Searches available block files inside `blocks_dir` and inserts a fence on `<CR>`. Useful when you want Telescope's fuzzy-search and preview while inserting.
+
+```
+:Telescope liveblocks insert
+:LiveblocksTelescopeInsert
+```
 
 Telescope is optional — the plugin works fine without it.
 

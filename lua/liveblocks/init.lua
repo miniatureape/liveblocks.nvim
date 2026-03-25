@@ -152,6 +152,171 @@ function M.create_liveblock()
     )
 end
 
+-- Insert a named liveblock fence pair at the current cursor and refresh
+function M.insert_block(name)
+  local f = fence()
+  local row = vim.api.nvim_win_get_cursor(0)[1]
+  vim.api.nvim_buf_set_lines(0, row - 1, row - 1, false, {
+    f['start'] .. ' ' .. name,
+    f['end'],
+  })
+  vim.schedule(function()
+    M.refresh_liveblocks()
+  end)
+end
+
+-- Open a floating picker to search for and insert a liveblock fence
+function M.insert_picker()
+  -- Capture context before the picker steals focus
+  local target_win = vim.api.nvim_get_current_win()
+  local target_buf = vim.api.nvim_get_current_buf()
+  local cursor = vim.api.nvim_win_get_cursor(target_win)
+
+  -- Collect available block files from every configured blocks_dir
+  local all_names = {}
+  for _, root_dir in ipairs(M.config.root_dirs) do
+    local blocks_path = vim.fn.expand(root_dir) .. '/' .. M.config.blocks_dir
+    local files = vim.fn.globpath(blocks_path, '**/*', false, true)
+    for _, file in ipairs(files) do
+      if vim.fn.isdirectory(file) == 0 then
+        local rel = file:sub(#blocks_path + 2)
+        table.insert(all_names, rel)
+      end
+    end
+  end
+
+  if #all_names == 0 then
+    vim.notify('No liveblocks found in configured root_dirs', vim.log.levels.INFO)
+    return
+  end
+  table.sort(all_names)
+
+  local filtered = vim.deepcopy(all_names)
+  local selected_idx = 1
+
+  -- Dimensions
+  local width = math.min(60, math.floor(vim.o.columns * 0.6))
+  local list_height = math.min(#all_names, 12)
+  local col = math.floor((vim.o.columns - width) / 2)
+  local list_row = math.floor((vim.o.lines - list_height - 5) / 2)
+  local prompt_row = list_row + list_height + 2
+
+  -- Buffers
+  local list_buf = vim.api.nvim_create_buf(false, true)
+  local prompt_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_option(list_buf, 'bufhidden', 'wipe')
+  vim.api.nvim_buf_set_option(prompt_buf, 'bufhidden', 'wipe')
+
+  local list_win = vim.api.nvim_open_win(list_buf, false, {
+    relative = 'editor',
+    width = width,
+    height = list_height,
+    row = list_row,
+    col = col,
+    style = 'minimal',
+    border = 'rounded',
+    title = ' Insert Liveblock ',
+    title_pos = 'center',
+  })
+
+  local prompt_win = vim.api.nvim_open_win(prompt_buf, true, {
+    relative = 'editor',
+    width = width,
+    height = 1,
+    row = prompt_row,
+    col = col,
+    style = 'minimal',
+    border = 'rounded',
+    title = ' > ',
+    title_pos = 'left',
+  })
+
+  local hl_ns = vim.api.nvim_create_namespace('liveblocks_insert_picker')
+
+  local function redraw_list()
+    vim.api.nvim_buf_set_option(list_buf, 'modifiable', true)
+    vim.api.nvim_buf_set_lines(list_buf, 0, -1, false, filtered)
+    vim.api.nvim_buf_set_option(list_buf, 'modifiable', false)
+    vim.api.nvim_buf_clear_namespace(list_buf, hl_ns, 0, -1)
+    if #filtered > 0 then
+      vim.api.nvim_buf_add_highlight(list_buf, hl_ns, 'PmenuSel', selected_idx - 1, 0, -1)
+      if vim.api.nvim_win_is_valid(list_win) then
+        vim.api.nvim_win_set_cursor(list_win, { selected_idx, 0 })
+      end
+    end
+  end
+
+  local function update_filter()
+    local query = vim.api.nvim_buf_get_lines(prompt_buf, 0, 1, false)[1] or ''
+    filtered = {}
+    for _, name in ipairs(all_names) do
+      if query == '' or name:lower():find(query:lower(), 1, true) then
+        table.insert(filtered, name)
+      end
+    end
+    selected_idx = 1
+    redraw_list()
+  end
+
+  local function close_windows()
+    pcall(vim.api.nvim_win_close, prompt_win, true)
+    pcall(vim.api.nvim_win_close, list_win, true)
+  end
+
+  local function do_insert()
+    local name = filtered[selected_idx]
+    close_windows()
+    if name then
+      vim.schedule(function()
+        vim.api.nvim_set_current_win(target_win)
+        local f = fence()
+        local r = cursor[1]
+        vim.api.nvim_buf_set_lines(target_buf, r - 1, r - 1, false, {
+          f['start'] .. ' ' .. name,
+          f['end'],
+        })
+        M.refresh_liveblocks()
+      end)
+    end
+  end
+
+  local function cancel()
+    close_windows()
+    vim.schedule(function()
+      vim.api.nvim_set_current_win(target_win)
+    end)
+  end
+
+  local kopts = { buffer = prompt_buf, noremap = true, silent = true }
+  vim.keymap.set({ 'i', 'n' }, '<CR>', do_insert, kopts)
+  vim.keymap.set({ 'i', 'n' }, '<Esc>', cancel, kopts)
+  vim.keymap.set({ 'i', 'n' }, '<C-c>', cancel, kopts)
+  vim.keymap.set('i', '<C-n>', function()
+    selected_idx = math.min(selected_idx + 1, math.max(1, #filtered))
+    redraw_list()
+  end, kopts)
+  vim.keymap.set('i', '<C-p>', function()
+    selected_idx = math.max(selected_idx - 1, 1)
+    redraw_list()
+  end, kopts)
+
+  vim.api.nvim_create_autocmd({ 'TextChangedI', 'TextChanged' }, {
+    buffer = prompt_buf,
+    callback = update_filter,
+  })
+
+  vim.api.nvim_create_autocmd('WinClosed', {
+    pattern = tostring(prompt_win),
+    once = true,
+    callback = function()
+      pcall(vim.api.nvim_win_close, list_win, true)
+    end,
+  })
+
+  redraw_list()
+  vim.cmd('startinsert')
+end
+
 -- Wrap visual selection with liveblock fences
 function M.wrap_selection(start_line, end_line)
     dprint('Wrapping selection with liveblock')

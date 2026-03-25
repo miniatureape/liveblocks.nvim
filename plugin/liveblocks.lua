@@ -83,6 +83,14 @@ vim.api.nvim_create_user_command('LiveblocksWrap', function(opts)
   liveblocks.wrap_selection(opts.line1, opts.line2)
 end, { range = true })
 
+vim.api.nvim_create_user_command('LiveblocksInsert', function()
+  liveblocks.insert_picker()
+end, {})
+
 vim.api.nvim_create_user_command('LiveblocksTelescope', function()
   require('telescope').extensions.liveblocks.liveblocks()
+end, {})
+
+vim.api.nvim_create_user_command('LiveblocksTelescopeInsert', function()
+  require('telescope').extensions.liveblocks.insert()
 end, {})
